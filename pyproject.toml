@@ -12,6 +12,8 @@ dependencies = [
     "pydantic-settings==2.*",
     "argon2-cffi==23.*",
     "python-dotenv==1.*",
+    "djangorestframework-stubs>=3.17.1",
+    "result>=0.17.0",
 ]
 
 [dependency-groups]
