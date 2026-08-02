@@ -1,0 +1,38 @@
+[project]
+name = "yx-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "django==5.2.*",
+    "djangorestframework==3.17.*",
+    "djangorestframework-simplejwt==5.*",
+    "django-filter==25.*",
+    "psycopg[binary]==3.2.*",
+    "django-redis==6.*",
+    "pydantic-settings==2.*",
+    "argon2-cffi==23.*",
+    "python-dotenv==1.*",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.*",
+    "pytest-django==4.*",
+    "pytest-cov==6.*",
+    "ruff==0.*",
+    "mypy==1.*",
+    "factory-boy==3.*",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
