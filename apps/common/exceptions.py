@@ -2,10 +2,9 @@ import logging
 from rest_framework.views import exception_handler
 from rest_framework import status as http_status
 from rest_framework.exceptions import APIException, ValidationError
+from common.result import Result
 
-from apps.common.result import Result
-
-logger = logging.getLogger("maxkb")
+logger = logging.getLogger("yx-agent")
 
 
 class AppApiException(Exception):
