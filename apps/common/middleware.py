@@ -1,6 +1,7 @@
 import re
 
 from django.http import JsonResponse
+from django.utils.timezone import now
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
@@ -46,6 +47,18 @@ class AuthenticationMiddleware:
         if request.auth_policy == "jwt":
             auth = request.headers.get("Authorization", "")
             token = auth.removeprefix("Bearer ").strip()
+
+            # 应用 Key（app-key-*）：按哈希查 ApiKey 表
+            if token.startswith("app-key-"):
+                from identity.services import ApiKeyService
+                ak = ApiKeyService.authenticate(token)
+                if not ak or (ak.expires_at and ak.expires_at < now()):
+                    return _unauthorized("应用 Key 无效或已过期")
+                request.user = ak.user
+                request.auth = {"type": "api_key", "ak_id": str(ak.id)}
+                return self.get_response(request)
+
+            # JWT 用户
             if not token:
                 return _unauthorized("缺少 Authorization 头")
             try:

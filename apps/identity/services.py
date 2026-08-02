@@ -1,8 +1,11 @@
+import hashlib
+import secrets
+
 from django.contrib.auth import authenticate
 
 from common.cache import cache_set
 from common.exceptions import AppApiException
-from identity.models import User, Workspace, Role, WorkspaceMember
+from identity.models import User, Workspace, Role, WorkspaceMember, ApiKey
 
 
 class AuthService:
@@ -38,3 +41,21 @@ class WorkspaceService:
         m = WorkspaceService.ensure_member(ws, user)
         if m.role not in (Role.WORKSPACE_MANAGE, Role.ADMIN):
             raise AppApiException("需要工作空间管理权限", code=403)
+
+class ApiKeyService:
+    @staticmethod
+    def _hash(key: str) -> str:
+        return hashlib.sha256(key.encode()).hexdigest()
+
+    @staticmethod
+    def create(user, name: str, scope: str) -> dict:
+        """返回明文 key 只展示一次  ，库中只存hash"""
+        plain = f"app-key-{secrets.token_urlsafe(32)}"
+        ak = ApiKey.objects.create(user=user, name=name, scope=scope,key_hash=ApiKeyService._hash(plain))
+        return {"id": ak.id,"key":plain}
+
+    @staticmethod
+    def authenticate(token: str) -> ApiKey | None:
+        if not token.startswith("app-key-"):
+            return None
+        return ApiKey.objects.filter(key_hash=ApiKeyService._hash(token),is_active=True).first()

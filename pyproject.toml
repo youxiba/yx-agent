@@ -15,6 +15,7 @@ dependencies = [
     "djangorestframework-stubs>=3.17.1",
     "result>=0.17.0",
     "q>=2.7",
+    "apiclient>=1.0.4",
 ]
 
 [dependency-groups]
