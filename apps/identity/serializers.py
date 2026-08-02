@@ -1,8 +1,9 @@
 from rest_framework import serializers
 
 from common.verify import check_verify_code
-from .models import User, Role
+from .models import User, Role, Workspace, WorkspaceMember
 from .services import AuthService
+
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -13,16 +14,19 @@ class LoginSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
+
 class RefreshSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
+
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(min_length=3,max_length=150)
+    username = serializers.CharField(min_length=3, max_length=150)
     email = serializers.EmailField()
-    password = serializers.CharField(min_length=8,write_only=True)
+    password = serializers.CharField(min_length=8, write_only=True)
     code = serializers.CharField()
 
     def validate(self, attrs):
@@ -41,32 +45,52 @@ class RegisterSerializer(serializers.Serializer):
             password=validated_data['password']
         )
 
+
 class SendCodeSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
 
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
     code = serializers.CharField()
-    new_password = serializers.CharField(min_length=8,write_only=True)
+    new_password = serializers.CharField(min_length=8, write_only=True)
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "phone", "nick_name", "role", "source", "is_active", "create_time", "update_time"]
+        fields = ["id", "username", "email", "phone", "nick_name", "role", "source", "is_active", "create_time",
+                  "update_time"]
+
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(min_length=8,write_only=True)
+    password = serializers.CharField(min_length=8, write_only=True)
+
     class Meta:
         model = User
-        fields = ["username","email","phone","nick_name","role","password"]
+        fields = ["username", "email", "phone", "nick_name", "role", "password"]
 
     def create(self, validated_data):
-        role = validated_data.pop("role",Role.USER)
-        return User.objects.create_user(**validated_data,role=role)
+        role = validated_data.pop("role", Role.USER)
+        return User.objects.create_user(**validated_data, role=role)
+
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email","phone","nick_name","role","is_active"]
+        fields = ["email", "phone", "nick_name", "role", "is_active"]
 
 
+class WorkspaceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Workspace
+        fields = ["id", "name", "create_time"]
+
+
+class MemberSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = WorkspaceMember
+        fields = ["id", "user_id", "username", "email", "role", "create_time"]

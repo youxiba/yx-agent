@@ -4,12 +4,14 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from common.auth.decorators import require_permissions
 from common.verify import send_verify_code, check_verify_code
-from .models import User
+from .models import User, Workspace, Role, WorkspaceMember
 from .permissions import P
 from .serializers import LoginSerializer, RefreshSerializer, LogoutSerializer, SendCodeSerializer, RegisterSerializer, \
-    ResetPasswordSerializer, UserSerializer, UserCreateSerializer, UserUpdateSerializer
+    ResetPasswordSerializer, UserSerializer, UserCreateSerializer, UserUpdateSerializer, MemberSerializer, \
+    WorkspaceSerializer
 from common.auth.tokens import issue_token_pair
 from common.result import Result
+from .services import WorkspaceService
 
 
 class LoginView(APIView):
@@ -106,13 +108,14 @@ class UserListView(APIView):
         user = ser.save()
         return Result.success(UserSerializer(user).data)
 
+
 class UserOperateView(APIView):
     @require_permissions(P.USER_MANAGE)
     def put(self, request, user_id):
         user = User.objects.filter(id=user_id).first()
         if not user:
             return Result.error("用户不存在", code=404)
-        ser = UserUpdateSerializer(user,data=request.data, partial=True)
+        ser = UserUpdateSerializer(user, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         ser.save()
         return Result.success(UserSerializer(ser).data)
@@ -122,6 +125,7 @@ class UserOperateView(APIView):
         User.objects.filter(id=user_id).delete()
         return Result.success()
 
+
 class UserBatchDeleteView(APIView):
     @require_permissions(P.USER_MANAGE)
     def post(self, request):
@@ -129,3 +133,39 @@ class UserBatchDeleteView(APIView):
         User.objects.filter(id__in=ids).delete()
         return Result.success({"deleted": len(ids)})
 
+
+class WorkspaceListView(APIView):
+    @require_permissions(P.WORKSPACE_MANAGE)
+    def get(self, request):
+        ws_list = [ws.workspace for ws in request.user.workspaces.select_related("workspace")]
+        return Result.success(WorkspaceSerializer(ws).data for ws in ws_list)
+
+    @require_permissions(P.WORKSPACE_MANAGE)
+    def post(self, request):
+        name = request.data.get("name")
+        if not name:
+            return Result.error("name 必填", code=400)
+        ws = WorkspaceService.create(name, request.user)
+        return Result.success(WorkspaceSerializer(ws).data)
+
+
+class WorkspaceMemberView(APIView):
+    @require_permissions(P.WORKSPACE_MANAGE)
+    def get(self, request, ws_id):
+        ws = Workspace.objects.filter(id=ws_id).first()
+        if not ws:
+            return Result.error("工作空间不存在", code=404)
+        WorkspaceService.ensure_member(ws, request.user)
+        members = ws.members.select_related("user").all()
+        return Result.success([MemberSerializer(m).data for m in members])
+
+    @require_permissions(P.WORKSPACE_MANAGE)
+    def post(self, request, ws_id):
+        ws = Workspace.objects.filter(id=ws_id).first()
+        if not ws:
+            return Result.error("工作空间不存在", code=404)
+        WorkspaceService.require_owner_or_manage(ws, request.user)
+        user_id = request.data.get("user_id")
+        role = request.data.get("role", Role.USER)
+        member, _ = WorkspaceMember.objects.update_or_create(workspace=ws, user=request.user, defaults={"role": role})
+        return Result.success(MemberSerializer(member).data)

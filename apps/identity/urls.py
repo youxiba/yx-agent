@@ -11,4 +11,6 @@ urlpatterns = [
     path("admin/users",views.UserListView.as_view()),
     path("admin/user/batch_delete",views.UserBatchDeleteView.as_view()),
     path("admin/user/<uuid:user_id>",views.UserOperateView.as_view()),
+    path("admin/workspaces",views.WorkspaceListView.as_view()),
+    path("admin/workspaces/<uuid:ws_id>/members", views.WorkspaceMemberView.as_view()),
 ]
