@@ -1,7 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken,TokenError
 
-from .serializers import LoginSerializer,RefreshSerializer,LogoutSerializer
+from common.verify import send_verify_code, check_verify_code
+from .models import User
+from .serializers import LoginSerializer, RefreshSerializer, LogoutSerializer, SendCodeSerializer, RegisterSerializer, \
+    ResetPasswordSerializer
 from common.auth.tokens import issue_token_pair
 from common.result import Result
 
@@ -35,4 +38,41 @@ class LogoutView(APIView):
             RefreshToken(ser.validated_data["refresh"]).blacklist()
         except TokenError:
             pass
+        return Result.success()
+
+class SendCodeView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self,request):
+        ser = SendCodeSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        send_verify_code(ser.validated_data["email"])
+        return Result.success()
+
+class RegisterView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self,request):
+        ser = RegisterSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        user = ser.save()
+        return Result.success(issue_token_pair(user))
+
+class ResetPasswordView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def psot(self,request):
+        ser = ResetPasswordSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        if not check_verify_code(ser.validated_data["email"], ser.validated_data["code"]):
+            return Result.error("验证码错误或已过期", code=400)
+
+        user = User.objects.filter(email=ser.validated_data["email"]).first()
+        if not user:
+            return Result.error("邮箱未注册", code=400)
+        user.set_password(ser.validated_data["new_password"])
+        user.save(update_fields=["password"])
         return Result.success()

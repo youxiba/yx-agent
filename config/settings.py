@@ -71,8 +71,13 @@ DATABASES = {"default":{
 
 CACHES = {
     "default": {
-        "BACKEND":"django_redis.cache.RedisCache",
-        "LOCATION":f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # 旧版 Redis(<6) 不支持 RESP3 的 HELLO 命令，强制走 RESP2
+            "CONNECTION_POOL_KWARGS": {"protocol": 2},
+        },
     }
 }
 
@@ -93,3 +98,15 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.Argon2PasswordHasher",
 
 # AUTH_USER_MODEL 在第 3 天创建 User 模型后放开
 AUTH_USER_MODEL = "identity.User"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "level": "DEBUG"},
+    },
+    "loggers": {
+        # 应用日志（含 common.mail 的 [MAIL] 验证码输出）打到控制台
+        "maxkb": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
