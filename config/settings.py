@@ -29,6 +29,7 @@ ALLOWED_HOSTS = ["*"]
 STATIC_URL = "static/"
 
 INSTALLED_APPS = [
+    "django.contrib.auth",          # 需要（identity.User 继承 AbstractUser，且 AUTH_USER_MODEL 指向它）
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
@@ -90,4 +91,4 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.Argon2PasswordHasher",
                     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher"]
 
 # AUTH_USER_MODEL 在第 3 天创建 User 模型后放开
-# AUTH_USER_MODEL = "identity.User"
+AUTH_USER_MODEL = "identity.User"
