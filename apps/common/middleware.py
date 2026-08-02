@@ -1,75 +1,61 @@
 import re
-from tokenize import TokenError
 
 from django.http import JsonResponse
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from common.cache import cache_get
 
-#路径前缀-》认证策略
-PATP_POLICY = [
-    (r"^/api/admin/","jwt"),
-    (r"^/api/public/","optional"),
-    (r"^/api/chat/","chat"),
+# 公开免认证路径（登录/刷新不需要 token）
+PUBLIC_PATHS = ("/api/admin/auth/login", "/api/admin/auth/refresh")
+
+# 路径前缀 -> 认证策略
+PATH_POLICY = [
+    (r"^/api/admin/", "jwt"),
+    (r"^/api/public/", "optional"),
+    (r"^/api/chat/", "chat"),
 ]
 
-def resolve_policy(path: str) -> str:
-    for pat,policy in PATP_POLICY:
-        if re.match(pat,path):
-            return policy
-        return "reject"
 
-def _unauthorized(msg = "未认证"):
-    return JsonResponse({"code":401,"message":msg,"data":None},status=401)
+def resolve_policy(path: str) -> str:
+    for pat, policy in PATH_POLICY:
+        if re.match(pat, path):
+            return policy
+    return "reject"
+
+
+def _unauthorized(msg="未认证"):
+    return JsonResponse({"code": 401, "message": msg, "data": None}, status=401)
+
 
 class AuthenticationMiddleware:
-    """占位骨架，先全部放行"""
+    """JWT 认证中间件：按路径策略校验 Bearer token"""
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         request.auth_policy = resolve_policy(request.path)
-        request.user =  None
+        request.user = None
         request.auth = None
 
+        # 登录/刷新等公开路径，跳过 JWT 校验
+        if request.path.startswith(PUBLIC_PATHS):
+            return self.get_response(request)
+
         if request.auth_policy == "jwt":
-            auth = request.headers.get("Authorization","")
+            auth = request.headers.get("Authorization", "")
             token = auth.removeprefix("Bearer ").strip()
             if not token:
-                return _unauthorized("缺少 Authorization头")
+                return _unauthorized("缺少 Authorization 头")
             try:
-                validated,user = JWTAuthentication().get_user(JWTAuthentication().get_validated_token(token))
-                if cache_get(f"jwt.blacklist:{validated['jti']}"):
+                validated = JWTAuthentication().get_validated_token(token)
+                user = JWTAuthentication().get_user(validated)
+                if cache_get(f"jwt:blacklist:{validated['jti']}"):
                     return _unauthorized("token 已注销")
                 request.user = user
                 request.auth = validated
-
-            except (InvalidToken,TokenError):
+            except (InvalidToken, TokenError):
                 return _unauthorized("token 无效或已过期")
 
-            return self.get_response(request)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return self.get_response(request)

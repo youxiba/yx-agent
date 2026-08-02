@@ -24,7 +24,7 @@ def test_role_permission_matrix():
 
 @pytest.mark.django_db
 def test_require_permission_decorator():
-    from common.auth.decorators import require_permission
+    from common.auth.decorators import require_permissions
     from common.exceptions import PermissionDenied
     from rest_framework.test import APIRequestFactory
 
@@ -32,7 +32,7 @@ def test_require_permission_decorator():
         return User.objects.create_user(username=role, email=f"{role}@x.cn", password="x", role=role)
 
     class FakeView:
-        @require_permission(P.USER_MANAGE)
+        @require_permissions(P.USER_MANAGE)
         def get(self, request):
             return "ok"
 

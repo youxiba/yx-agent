@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from common.verify import check_verify_code
-from .models import User
+from .models import User, Role
 from .services import AuthService
 
 class LoginSerializer(serializers.Serializer):
@@ -48,3 +48,25 @@ class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
     code = serializers.CharField()
     new_password = serializers.CharField(min_length=8,write_only=True)
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "phone", "nick_name", "role", "source", "is_active", "create_time", "update_time"]
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(min_length=8,write_only=True)
+    class Meta:
+        model = User
+        fields = ["username","email","phone","nick_name","role","password"]
+
+    def create(self, validated_data):
+        role = validated_data.pop("role",Role.USER)
+        return User.objects.create_user(**validated_data,role=role)
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email","phone","nick_name","role","is_active"]
+
+

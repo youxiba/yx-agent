@@ -14,6 +14,7 @@ dependencies = [
     "python-dotenv==1.*",
     "djangorestframework-stubs>=3.17.1",
     "result>=0.17.0",
+    "q>=2.7",
 ]
 
 [dependency-groups]

@@ -3,7 +3,7 @@ from identity.permissions import get_user_permissions
 from common.exceptions import PermissionDenied
 
 
-def require_permission(*perms: str, mode: str = "AND"):
+def require_permissions(*perms: str, mode: str = "AND"):
     """perms:权限点，mode = AND/OR 组合判断"""
 
     def decorator(fn):

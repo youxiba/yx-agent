@@ -82,8 +82,9 @@ CACHES = {
 }
 
 REST_FRAMEWORK = {
-    "EXCEPTION_HANDLER":"common.exceptions.handle_exception",
-    "DEFAULT_AUTHENTICATION_CLASSES":[]
+    "EXCEPTION_HANDLER": "common.exceptions.handle_exception",
+    # 复用中间件解析的用户，避免 DRF 把 request.user 覆盖为 AnonymousUser
+    "DEFAULT_AUTHENTICATION_CLASSES": ["common.auth.backends.MiddlewareUserAuthentication"],
 }
 
 SIMPLE_JWT = {
