@@ -16,6 +16,12 @@ dependencies = [
     "result>=0.17.0",
     "q>=2.7",
     "apiclient>=1.0.4",
+    "cryptography==44.*",
+    "openai==1.*",
+    "requests==2.*",
+    "sentence-transformers==3.*", #local_model 微服务用(可移入独立venv)
+    "fastapi==0.115",             #local_model 微服务用
+    "uvicorn[stanard]==0.32.*",   # local_model 微服务用
 ]
 
 [dependency-groups]

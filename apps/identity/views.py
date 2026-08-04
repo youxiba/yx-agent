@@ -137,8 +137,10 @@ class UserBatchDeleteView(APIView):
 class WorkspaceListView(APIView):
     @require_permissions(P.WORKSPACE_MANAGE)
     def get(self, request):
-        ws_list = [ws.workspace for ws in request.user.workspaces.select_related("workspace")]
-        return Result.success(WorkspaceSerializer(ws).data for ws in ws_list)
+        # 用户的工作空间 = 其成员关系(memberships)关联的 workspace
+        memberships = request.user.memberships.select_related("workspace")
+        ws_list = [WorkspaceSerializer(m.workspace).data for m in memberships]
+        return Result.success(ws_list)
 
     @require_permissions(P.WORKSPACE_MANAGE)
     def post(self, request):

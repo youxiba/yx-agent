@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "apps"))
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     redis_db: int = 0
     access_token_minutes: int = 30
     refresh_token_days: int = 7
+    model_credential_key: str = "0123456789abcdef0123456789abcdef"
+    local_model_host: str = "127.0.0.1"
+    local_model_port: int = 11636
 
 settings = Settings()
 
@@ -37,6 +41,7 @@ INSTALLED_APPS = [
     "common.apps.CommonConfig",
     "identity.apps.IdentityConfig",
     "rest_framework_simplejwt.token_blacklist",
+    "model_platform.apps.ModelPlatformConfig"
 ]
 
 MIDDLEWARE = [
@@ -111,3 +116,4 @@ LOGGING = {
         "maxkb": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
+MODEL_CREDENTIAL_KEY = hashlib.sha256(settings.model_credential_key.encode()).digest()
