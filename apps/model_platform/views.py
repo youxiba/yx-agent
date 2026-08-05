@@ -1,14 +1,13 @@
 import json
 
-from django.db.models import Model
 from rest_framework.views import APIView
 
 from common.auth.decorators import require_permissions
 from common.result import Result
 from identity.permissions import P
-from model_platform.infra import cipher
+from model_platform.infra.cipher import cipher
 from model_platform.infra.repos import ModelRepository
-from model_platform.models import ModelType
+from model_platform.models import Model, ModelType
 from model_platform.registry import PROVIDERS
 from model_platform.serializers import ModelSerializer
 from model_platform.service.form import get_credential_form
