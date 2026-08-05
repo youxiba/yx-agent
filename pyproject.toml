@@ -22,6 +22,15 @@ dependencies = [
     "sentence-transformers==3.*", #local_model 微服务用(可移入独立venv)
     "fastapi==0.115",             #local_model 微服务用
     "uvicorn[stanard]==0.32.*",   # local_model 微服务用
+    "pgvector==0.4.*",          # 向量字段 + HNSW
+    "celery==5.*",              # 异步任务
+    "celery-once==3.*",         # 幂等锁（celery_once.QueueOnce）
+    "httpx==0.28.*",    # 本地 embedding 微服务调用
+    "pypdf==5.*",               # pdf 解析
+    "python-docx==1.*",         # docx 解析
+    "openpyxl==3.*",            # xlsx 解析
+    "markdownify==1.*",         # html → md
+    "beautifulsoup4==4.*",      # Web 知识库爬取
 ]
 
 [dependency-groups]
@@ -32,6 +41,7 @@ dev = [
     "ruff==0.*",
     "mypy==1.*",
     "factory-boy==3.*",
+    "reportlab==4.*",    # 测试用：生成pdf 样本
 ]
 
 [tool.pytest.ini_options]

@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     "common.apps.CommonConfig",
     "identity.apps.IdentityConfig",
     "rest_framework_simplejwt.token_blacklist",
-    "model_platform.apps.ModelPlatformConfig"
+    "model_platform.apps.ModelPlatformConfig",
+    "knowledge.apps.KnowledgeConfig",
 ]
 
 MIDDLEWARE = [
@@ -117,3 +118,12 @@ LOGGING = {
     },
 }
 MODEL_CREDENTIAL_KEY = hashlib.sha256(settings.model_credential_key.encode()).digest()
+
+KNOWLEDGE_FILE_DIR=str(Path(BASE_DIR) /"var" / "knowledge_files")
+LOCAL_MODEL_URL ="http://127.0.0.1:11636"
+
+# --- Celery ---
+CELERY_BROKER_URL = f"redis://{settings.redis_host}:{settings.redis_port}/{settings.redis_db}"
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_TASK_ALWAYS_EAGER = settings.debug          # 开发期本地执行，便于调试
+CELERY_ONCE_REDIS_URL = CELERY_BROKER_URL
