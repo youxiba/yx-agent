@@ -10,3 +10,5 @@ class ModelPlatformConfig(AppConfig):
         from .impl.openai import provider  # noqa: F401  触发 register_provider
         from .impl.deepseek import provider as _d  # noqa: F401
         from .impl.qwen import provider as _q  # noqa: F401
+        from .impl.ollama import provider as _o
+        from .impl.local import provider as _l
