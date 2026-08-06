@@ -1,7 +1,9 @@
 # coding=utf-8
 """节点装配：启动时注册全部内置节点（后续各 Day 增量追加 import + register）。"""
 from agent.engine.nodes.document_node import DocumentExtractNode, DocumentSplitNode, KnowledgeWriteNode
+from agent.engine.nodes.parameter_extraction_node import ParameterExtractionNode
 from agent.engine.nodes.search_node import SearchKnowledgeNode, SearchDocumentNode, RerankerNode
+from agent.engine.nodes.variable_node import VariableAssignNode, SplittingNode, AggregationNode
 
 """节点装配：注册全部内置节点；run_workflow 注入 executor/graph 服务。"""
 from agent.engine.registry import NODES
@@ -24,3 +26,7 @@ NODES.register(RerankerNode)
 NODES.register(DocumentExtractNode)
 NODES.register(DocumentSplitNode)
 NODES.register(KnowledgeWriteNode)
+NODES.register(VariableAssignNode)
+NODES.register(SplittingNode)
+NODES.register(AggregationNode)
+NODES.register(ParameterExtractionNode)
