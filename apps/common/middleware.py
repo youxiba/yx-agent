@@ -72,9 +72,9 @@ class AuthenticationMiddleware:
             except (InvalidToken, TokenError):
                 return _unauthorized("token 无效或已过期")
 
-            if request.auth_policy == "chat":
-                # 聊天认证：Authorization: Bearer {access_token}；无 token 时允许匿名（匿名端用 client_id）
-                token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
-                request.application = resolve_application(token) if token else None
+        if request.auth_policy == "chat":
+            # 聊天认证：Authorization: Bearer {access_token}；无 token 时允许匿名（匿名端用 client_id）
+            token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+            request.application = resolve_application(token) if token else None
 
         return self.get_response(request)

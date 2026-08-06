@@ -24,6 +24,12 @@ class Hit:
     title: str = ""
     content: str = ""
 
+    def to_dict(self) -> dict:
+        """供 chat 步骤 / API 序列化使用"""
+        return {"paragraph_id": self.paragraph_id, "score": round(self.score, 4),
+                "document_id": self.document_id, "document_name": self.document_name,
+                "title": self.title, "content": self.content}
+
 
 class BaseVectorStore(ABC):
     @abstractmethod

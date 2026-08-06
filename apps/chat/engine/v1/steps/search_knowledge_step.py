@@ -1,7 +1,7 @@
 # apps/chat/engine/v1/steps/search_knowledge_step.py
 """知识库检索步骤：调用 Phase 3 检索引擎，产出命中段落并判定直接返回。"""
 from chat.sse import EVT_NODE_END, EVT_NODE_START, SSEEvent
-from knowledge.service.search import knowledge_search   # Phase 3 检索引擎入口（签名按 Phase 3 实际对齐）
+from knowledge.services.search import knowledge_search   # Phase 3 检索引擎入口
 from ..context import PipelineContext
 from ..pipeline import IBaseStep
 

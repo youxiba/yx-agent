@@ -5,5 +5,6 @@ urlpatterns = [
     path("api/",include("identity.urls")),
     path("api/",include("model_platform.urls")),
     path("api/", include("knowledge.urls")),
+    path("api/", include("chat.urls")),
 
 ]
