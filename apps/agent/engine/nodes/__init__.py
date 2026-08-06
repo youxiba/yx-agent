@@ -1,5 +1,7 @@
 # coding=utf-8
 """节点装配：启动时注册全部内置节点（后续各 Day 增量追加 import + register）。"""
+from agent.engine.nodes.search_node import SearchKnowledgeNode, SearchDocumentNode, RerankerNode
+
 """节点装配：注册全部内置节点；run_workflow 注入 executor/graph 服务。"""
 from agent.engine.registry import NODES
 from agent.engine.nodes.condition_node import ConditionNode
@@ -15,3 +17,6 @@ NODES.register(LoopNode); NODES.register(LoopStartNode)
 NODES.register(LoopBreakNode); NODES.register(LoopContinueNode)
 NODES.register(StartNode); NODES.register(ReplyNode)
 NODES.register(AiChatNode)
+NODES.register(SearchKnowledgeNode);
+NODES.register(SearchDocumentNode);
+NODES.register(RerankerNode)
