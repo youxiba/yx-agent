@@ -1,0 +1,30 @@
+{
+  "name": "知识库问答",
+  "language": "zh_CN",
+  "work_flow": {
+    "nodes": [
+      {"id": "start", "type": "start-node", "name": "开始",
+       "properties": {"global_variables": []}},
+      {"id": "search", "type": "search-knowledge-node", "name": "知识库检索",
+       "properties": {"knowledge_ids": [], "search_mode": "blend", "top_n": 3,
+                      "question": "{{ chat.question }}"}},
+      {"id": "cond", "type": "condition-node", "name": "命中判断",
+       "properties": {
+         "branches": [{"branch_id": "true", "name": "有答案",
+                       "logical_operator": "and",
+                       "conditions": [{"field": "知识库检索.paragraph_list",
+                                       "comparator": "is_not_empty"}]}],
+         "default_branch_id": "false"}},
+      {"id": "answer", "type": "reply-node", "name": "回答",
+       "properties": {"content": "{{ 知识库检索.paragraph_list.0.content }}"}},
+      {"id": "none", "type": "reply-node", "name": "未命中",
+       "properties": {"content": "知识库中暂未找到相关内容，请换个问法。"}}
+    ],
+    "edges": [
+      {"source": "start", "target": "search"},
+      {"source": "search", "target": "cond"},
+      {"source": "cond", "target": "answer", "branch_id": "true"},
+      {"source": "cond", "target": "none", "branch_id": "false"}
+    ]
+  }
+}
