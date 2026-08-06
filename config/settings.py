@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "model_platform.apps.ModelPlatformConfig",
     "knowledge.apps.KnowledgeConfig",
     "application.apps.ApplicationConfig", "chat.apps.ChatConfig",
+    "agent.apps.AgentConfig",
 ]
 
 MIDDLEWARE = [

@@ -31,6 +31,7 @@ dependencies = [
     "openpyxl==3.*",            # xlsx 解析
     "markdownify==1.*",         # html → md
     "beautifulsoup4==4.*",      # Web 知识库爬取
+    "jinja2==3.1.*",      # 模板渲染引擎（全局 StrictUndefined）
 ]
 
 [dependency-groups]
