@@ -24,7 +24,8 @@ class SearchKnowledgeStep(IBaseStep):
             top_n=ks.get("top_n", 3),
             similarity=ks.get("similarity", 0.3),
         )
-        ctx.paragraph_list = [h.to_dict() for h in hits]   # 命中段落（含 content/similarity/source_id）
+        # 命中段落：优先 to_dict（Hit 对象），否则兼容 dict/SimpleNamespace（测试 fake）
+        ctx.paragraph_list = [h.to_dict() if hasattr(h, "to_dict") else vars(h) for h in hits]
         ctx.source = ctx.paragraph_list
         # 直接返回判定：最高相似度 ≥ 阈值则后续跳过 LLM（Day 6 在 ChatStep 生效）
         direct_th = ks.get("direct_return_similarity", 0.9)

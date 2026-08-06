@@ -50,7 +50,7 @@ def test_end_to_end_ingest(knowledge, user, fake_gateway):
 
 @pytest.mark.django_db
 def test_document_refresh_after_edit(knowledge, user, fake_gateway):
-    upload = SimpleUploadedFile("d.md", b"# 标题\n旧内容。", content_type="text/markdown")
+    upload = SimpleUploadedFile("d.md", "# 标题\n旧内容。".encode("utf-8"), content_type="text/markdown")
     svc = DocumentIngestService()
     doc = svc.upload(knowledge, user, upload)
     svc.split(str(doc.id))
