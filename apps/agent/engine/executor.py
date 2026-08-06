@@ -14,7 +14,7 @@ from typing import Any
 from chat.sse import SSEEvent, EventEmitter, EVT_NODE_START, EVT_NODE_END
 from agent.engine.errors import WorkflowEngineError, WorkflowInterrupt
 from agent.engine.graph import WorkflowGraph, GraphNode
-from agent.engine.registry import NodeRegistry
+from agent.engine.registry import NODES
 from agent.engine.node import NodeContext, NodeResult
 
 
@@ -117,7 +117,7 @@ class Executor:
 
     def _execute_one(self, node_id: str, ctx: NodeContext, emitter: EventEmitter) -> NodeResult:
         node = self.graph.get_node(node_id)
-        inst = NodeRegistry.create(node.node_type, ctx.mode, node.config)
+        inst = NODES.create(node.node_type, ctx.mode, node.config)
         inst.validate(node.config)
         emitter.emit(SSEEvent(EVT_NODE_START, node_id=node_id, node_type=node.node_type))
         result: NodeResult = inst.execute(ctx.fork(node_id, node.config))

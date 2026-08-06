@@ -18,7 +18,7 @@ def run_workflow(graph: WorkflowGraph, *, mode: str = "application", inputs: dic
     emitter = emitter or EventEmitter()
     ctx = NodeContext(store=store, emitter=emitter, mode=mode, node_id="", config={},
                       services=services)
-    Executor(graph).run(graph.get_start(), ctx, emitter)
+    Executor(graph).run(ctx, emitter, start_id=graph.get_start())   # Executor V2 签名
     emitter.emit(SSEEvent(EVT_MESSAGE_END, is_end=True,
                           answer_text=store.global_vars.get("answer", "")))
     return store
