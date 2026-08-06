@@ -9,16 +9,17 @@ from agent.engine.graph import WorkflowGraph
 from agent.engine.node import NodeContext
 
 
-def run_workflow(graph: WorkflowGraph, *, mode: str = "application", inputs: dict | None = None,
-                 emitter: EventEmitter | None = None, services: dict | None = None) -> ContextStore:
-    """顶层入口：建 ContextStore、seed chat 变量、跑 Executor、收尾 message_end。"""
+def run_workflow(graph, *, mode="application", inputs=None, emitter=None, services=None):
     store = ContextStore()
     store.chat_vars.update(inputs or {})
-    services = services or {}
+    services = dict(services or {})
+    services.setdefault("graph", graph)
+    executor = Executor(graph)
+    services.setdefault("executor", executor)          # LoopNode 经 ctx.get('executor') 调用 run_subgraph
     emitter = emitter or EventEmitter()
     ctx = NodeContext(store=store, emitter=emitter, mode=mode, node_id="", config={},
                       services=services)
-    Executor(graph).run(ctx, emitter, start_id=graph.get_start())   # Executor V2 签名
+    executor.run(ctx, emitter, start_id=graph.get_start())
     emitter.emit(SSEEvent(EVT_MESSAGE_END, is_end=True,
                           answer_text=store.global_vars.get("answer", "")))
     return store
