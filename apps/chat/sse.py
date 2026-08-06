@@ -28,6 +28,7 @@ class SSEEvent:
     usage: dict | None = None                   # token 统计，仅 message_end 一次性回传
     is_end: bool = False
     node_status: str = "SUCCESS"
+    answer_text: str = ""                       # 仅 message_end 回传最终答案（Phase 5 引擎用）
 
     def to_frame(self) -> str:
         """序列化为 SSE 帧：data: <json>\n\n"""
