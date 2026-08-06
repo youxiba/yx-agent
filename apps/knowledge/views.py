@@ -1,4 +1,6 @@
 # coding=utf-8
+import json
+
 from django.core.paginator import Paginator
 from rest_framework.views import APIView
 from common.result import Result
@@ -7,7 +9,10 @@ from common.auth.decorators import require_permissions
 from identity.services import WorkspaceService
 from .infra import index_service
 from .infra.vector_store import PGVectorStore
-from .models import Knowledge, KnowledgeFolder, VectorType
+from .models import Knowledge, KnowledgeFolder, VectorType, Document, Problem, Paragraph, Term, Termbase
+from .serializers import DocumentSerializer, FolderSerializer, KnowledgeSerializer, ProblemSerializer, TermSerializer, \
+    TermbaseSerializer, ParagraphSerializer
+from .services.ingest import DocumentIngestService
 from .services.knowledge import get_knowledge
 from .services.preview import PreviewService
 
@@ -136,3 +141,264 @@ class KnowledgeRefreshView(APIView):
         from .tasks import embed_by_knowledge
         embed_by_knowledge.delay(str(k.id))
         return Result.success({"message": "刷新已排队"})
+
+class DocumentListView(APIView):
+    """GET 文档列表 / POST 上传文档（multipart: file, type, folder_id, meta, limit）"""
+    @require_permissions(P.KNOWLEDGE_READ)
+    def get(self, request, knowledge_id):
+        k = get_knowledge(request, knowledge_id)
+        q = Q(knowledge=k, is_active=True)
+        if kw := request.query_params.get("name"):
+            q &= Q(name__icontains=kw)
+        page = int(request.query_params.get("page", 1))
+        size = int(request.query_params.get("page_size", 10))
+        qs = k.documents.filter(q).order_by("-update_time")
+        pg = Paginator(qs, size)
+        return Result.success({"items": [DocumentSerializer(d).data for d in pg.page(page)], "total": pg.count})
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def post(self, request, knowledge_id):
+        k = get_knowledge(request, knowledge_id)
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Result.error("缺少上传文件", code=400)
+        doc_type = request.data.get("type", "base")
+        meta = json.loads(request.data.get("meta", "{}") or "{}")
+        meta.setdefault("limit", int(request.data.get("limit", 256)))
+        doc = DocumentIngestService().upload(k, request.user, upload, doc_type, meta)
+        return Result.success(DocumentSerializer(doc).data)
+
+
+class DocumentOperateView(APIView):
+    """PUT/DELETE /api/admin/knowledge/document/{id}"""
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def put(self, request, document_id):
+        doc = Document.objects.filter(id=document_id).first()
+        if not doc:
+            return Result.error("文档不存在", code=404)
+        get_knowledge(request, str(doc.knowledge_id))
+        ser = DocumentSerializer(doc, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Result.success(DocumentSerializer(doc).data)
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def delete(self, request, document_id):
+        doc = Document.objects.filter(id=document_id).first()
+        if not doc:
+            return Result.error("文档不存在", code=404)
+        get_knowledge(request, str(doc.knowledge_id))
+        from .infra.vector_store import PGVectorStore
+        PGVectorStore().delete_by_document_ids([str(doc.id)])
+        doc.delete()    # 级联段落/问题/Embedding
+        return Result.success()
+
+
+class DocumentBatchView(APIView):
+    """POST /api/admin/knowledge/document/batch  {ids, operation: delete|move, folder_id}"""
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def post(self, request):
+        ids = request.data.get("ids", [])
+        operation = request.data.get("operation", "delete")
+        if operation == "move":
+            Document.objects.filter(id__in=ids).update(folder_id=request.data.get("folder_id"))
+        else:
+            PGVectorStore().delete_by_document_ids(ids)
+            Document.objects.filter(id__in=ids).delete()
+        return Result.success()
+
+
+class DocumentRefreshView(APIView):
+    """POST /api/admin/knowledge/document/{id}/refresh  重新向量化单文档"""
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def post(self, request, document_id):
+        doc = Document.objects.filter(id=document_id).first()
+        if not doc:
+            return Result.error("文档不存在", code=404)
+        get_knowledge(request, str(doc.knowledge_id))
+        from .services.ingest import DocumentIngestService
+        DocumentIngestService().refresh_document(str(doc.id))
+        return Result.success({"message": "刷新已排队"})
+
+    class ParagraphListView(APIView):
+        """GET /api/admin/knowledge/document/{id}/paragraph  段落列表（分页）"""
+
+        @require_permissions(P.KNOWLEDGE_READ)
+        def get(self, request, document_id):
+            doc = Document.objects.filter(id=document_id).first()
+            if not doc:
+                return Result.error("文档不存在", code=404)
+            get_knowledge(request, str(doc.knowledge_id))
+            q = Q(document=doc, is_active=True)
+            if kw := request.query_params.get("content"):
+                q &= Q(content__icontains=kw)
+            page = int(request.query_params.get("page", 1))
+            size = int(request.query_params.get("page_size", 20))
+            qs = doc.paragraphs.filter(q).order_by("create_time")
+            pg = Paginator(qs, size)
+            items = []
+            for p in pg.page(page):
+                data = ParagraphSerializer(p).data
+                data["problems"] = [ProblemSerializer(pp).data for pp in p.problems.filter(is_active=True)]
+                items.append(data)
+            return Result.success({"items": items, "total": pg.count})
+
+    class ParagraphOperateView(APIView):
+        """PUT/DELETE /api/admin/knowledge/paragraph/{id}"""
+
+        @require_permissions(P.KNOWLEDGE_WRITE)
+        def put(self, request, paragraph_id):
+            p = Paragraph.objects.filter(id=paragraph_id).first()
+            if not p:
+                return Result.error("段落不存在", code=404)
+            get_knowledge(request, str(p.knowledge_id))
+            ser = ParagraphSerializer(p, data=request.data, partial=True)
+            ser.is_valid(raise_exception=True)
+            old_hash = p.compare_content_hash
+            ser.save()
+            if p.compare_content_hash != old_hash:
+                from .services.ingest import DocumentIngestService
+                DocumentIngestService().refresh_document(str(p.document_id))  # 内容变更触发重向量化
+            return Result.success(ParagraphSerializer(p).data)
+
+        @require_permissions(P.KNOWLEDGE_WRITE)
+        def delete(self, request, paragraph_id):
+            p = Paragraph.objects.filter(id=paragraph_id).first()
+            if not p:
+                return Result.error("段落不存在", code=404)
+            get_knowledge(request, str(p.knowledge_id))
+            from .infra.vector_store import PGVectorStore
+            PGVectorStore().delete_by_paragraph_ids([str(p.id)])
+            p.delete()
+            return Result.success()
+
+    class ParagraphBatchView(APIView):
+        """POST /api/admin/knowledge/paragraph/batch  {ids, operation: delete|move, document_id}"""
+
+        @require_permissions(P.KNOWLEDGE_WRITE)
+        def post(self, request):
+            ids = request.data.get("ids", [])
+            operation = request.data.get("operation", "delete")
+            if operation == "move":
+                Paragraph.objects.filter(id__in=ids).update(document_id=request.data.get("document_id"))
+            else:
+                PGVectorStore().delete_by_paragraph_ids(ids)
+                Paragraph.objects.filter(id__in=ids).delete()
+            return Result.success()
+
+    class ProblemListView(APIView):
+        """GET/POST /api/admin/knowledge/paragraph/{id}/problem  问题列表与新增"""
+
+        @require_permissions(P.KNOWLEDGE_READ)
+        def get(self, request, paragraph_id):
+            p = Paragraph.objects.filter(id=paragraph_id).first()
+            if not p:
+                return Result.error("段落不存在", code=404)
+            get_knowledge(request, str(p.knowledge_id))
+            return Result.success([ProblemSerializer(pp).data for pp in p.problems.filter(is_active=True)])
+
+        @require_permissions(P.KNOWLEDGE_WRITE)
+        def post(self, request, paragraph_id):
+            p = Paragraph.objects.filter(id=paragraph_id).first()
+            if not p:
+                return Result.error("段落不存在", code=404)
+            get_knowledge(request, str(p.knowledge_id))
+            content = request.data.get("content")
+            if not content:
+                return Result.error("content 必填", code=400)
+            pp = Problem.objects.create(paragraph=p, content=content)
+            return Result.success(ProblemSerializer(pp).data)
+
+    class ProblemOperateView(APIView):
+        """PUT/DELETE /api/admin/knowledge/problem/{id}"""
+
+        @require_permissions(P.KNOWLEDGE_WRITE)
+        def put(self, request, problem_id):
+            pp = Problem.objects.filter(id=problem_id).first()
+            if not pp:
+                return Result.error("问题不存在", code=404)
+            get_knowledge(request, str(pp.paragraph.knowledge_id))
+            pp.content = request.data.get("content", pp.content)
+            pp.save(update_fields=["content"])
+            return Result.success(ProblemSerializer(pp).data)
+
+        @require_permissions(P.KNOWLEDGE_WRITE)
+        def delete(self, request, problem_id):
+            Problem.objects.filter(id=problem_id).delete()
+            return Result.success()
+
+class TermbaseListView(APIView):
+    """GET/POST /api/admin/termbase"""
+    @require_permissions(P.KNOWLEDGE_READ)
+    def get(self, request):
+        q = Q(workspace_id__in=request.user.memberships.values_list("workspace_id", flat=True))
+        if kw := request.query_params.get("keyword"):
+            q &= Q(name__icontains=kw)
+        qs = Termbase.objects.filter(q).order_by("-update_time")
+        return Result.success({"items": [TermbaseSerializer(t).data for t in qs], "total": qs.count()})
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def post(self, request):
+        from identity.models import Workspace
+        ws = Workspace.objects.filter(id=request.data.get("workspace_id")).first()
+        if ws is None:
+            return Result.error("工作空间不存在", code=400)
+        WorkspaceService.ensure_member(ws, request.user)
+        tb = Termbase.objects.create(name=request.data.get("name"), workspace=ws, user=request.user)
+        return Result.success(TermbaseSerializer(tb).data)
+
+
+class TermbaseOperateView(APIView):
+    """PUT/DELETE /api/admin/termbase/{id}"""
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def put(self, request, termbase_id):
+        tb = Termbase.objects.filter(id=termbase_id).first()
+        if not tb:
+            return Result.error("术语库不存在", code=404)
+        WorkspaceService.ensure_member(tb.workspace, request.user)
+        tb.name = request.data.get("name", tb.name)
+        tb.save(update_fields=["name"])
+        return Result.success(TermbaseSerializer(tb).data)
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def delete(self, request, termbase_id):
+        Termbase.objects.filter(id=termbase_id).delete()
+        return Result.success()
+
+
+class TermListView(APIView):
+    """GET/POST /api/admin/termbase/{id}/term"""
+    @require_permissions(P.KNOWLEDGE_READ)
+    def get(self, request, termbase_id):
+        tb = Termbase.objects.filter(id=termbase_id).first()
+        if not tb:
+            return Result.error("术语库不存在", code=404)
+        WorkspaceService.ensure_member(tb.workspace, request.user)
+        terms = tb.terms.filter(is_active=True).order_by("create_time")
+        return Result.success({"items": [TermSerializer(t).data for t in terms], "total": terms.count()})
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def post(self, request, termbase_id):
+        tb = Termbase.objects.filter(id=termbase_id).first()
+        if not tb:
+            return Result.error("术语库不存在", code=404)
+        WorkspaceService.ensure_member(tb.workspace, request.user)
+        t = Term.objects.create(termbase=tb, content=request.data.get("content"))
+        return Result.success(TermSerializer(t).data)
+
+
+class TermOperateView(APIView):
+    """PUT/DELETE /api/admin/termbase/term/{id}"""
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def put(self, request, term_id):
+        t = Term.objects.filter(id=term_id).first()
+        if not t:
+            return Result.error("术语不存在", code=404)
+        t.content = request.data.get("content", t.content)
+        t.save(update_fields=["content"])
+        return Result.success(TermSerializer(t).data)
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def delete(self, request, term_id):
+        Term.objects.filter(id=term_id).delete()
+        return Result.success()

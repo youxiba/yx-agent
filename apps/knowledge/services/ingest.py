@@ -122,3 +122,11 @@ class DocumentIngestService:
         task, _ = DocumentTask.objects.update_or_create(
             document=doc, type=task_type, defaults={"status": Status.PENDING, "is_active": True})
         return task
+
+    def refresh_document(self, document_id: str) -> None:
+        """文档内容/向量刷新：段落重置为 PENDING，删旧向量后重新向量化"""
+        doc = Document.objects.get(id=document_id)
+        Paragraph.objects.filter(document=doc, is_active=True).update(status=Status.PENDING)
+        PGVectorStore().delete_by_document_ids([str(doc.id)])
+        from ..tasks import embed_by_document
+        embed_by_document.delay(str(doc.id))
