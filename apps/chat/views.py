@@ -12,6 +12,7 @@ from chat.cache import ChatInfoService
 from chat.engine.v1.builder import build_simple_pipeline
 from chat.engine.v1.context import PipelineContext
 from chat.models import Chat, ChatRecord
+from chat.openai_adapter import OpenAIToResponseAdapter
 from chat.serializers import ChatRecordSerializer, ChatSerializer
 from chat.sse import EventEmitter
 from chat.stream import sse_response
@@ -194,3 +195,44 @@ class ChatShareView(APIView):
         if not rec:
             raise AppApiException("记录不存在", code=404)
         return Result.success({"share_id": str(rec.id), "question": rec.question, "answer": rec.answer})
+
+class OpenAICompatibleView(ChatView):
+    """POST /api/chat/{app_id}/completions —— OpenAI 兼容流式端点。
+
+    继承 ChatView 复用 _get_or_create_chat/_run_pipeline/_save_record。
+    """
+
+    def post(self, request, app_id):
+        app = get_chat_application(request, app_id)
+        body = json.loads(request.body or "{}")
+        messages = body.get("messages") or []              # [{"role","content"}, ...]
+        if not messages:
+            return Result.error("messages 不能为空", code=400)
+        question = messages[-1].get("content", "") if messages else ""
+        history = [{"role": m["role"], "content": m["content"]} for m in messages[:-1]]
+        chat = self._get_or_create_chat(app, request, body)
+
+        ctx = PipelineContext(
+            question=question, chat_history=history,
+            knowledge_setting=app.knowledge_setting, model_setting=app.model_setting,
+        )
+        emitter = EventEmitter()
+        ctx.emitter = emitter
+        threading.Thread(target=self._run_pipeline, args=(app, ctx), daemon=True).start()
+
+        adapter = OpenAIToResponseAdapter(model_name=app.name)
+
+        def generate():
+            try:
+                yield adapter.frame_to_sse(adapter.start_frame())
+                for ev in emitter.events():                # 按对象消费，免二次 JSON 解析
+                    chunk = adapter.convert(ev)
+                    if chunk is not None:
+                        yield adapter.frame_to_sse(chunk)
+                yield "data: [DONE]\n\n"                   # OpenAI 流式约定收尾
+            finally:
+                self._save_record(chat, ctx)
+                ChatInfoService.push_history(str(chat.id), {"role": "user", "content": question})
+                ChatInfoService.push_history(str(chat.id), {"role": "assistant", "content": ctx.answer})
+
+        return sse_response(generate())

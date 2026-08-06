@@ -12,4 +12,5 @@ urlpatterns = [
     path("chat/<uuid:app_id>/chat_record/<uuid:record_id>", views.ChatDetailView.as_view()),
     path("chat/<uuid:app_id>/chat_record/<uuid:record_id>/vote", views.ChatVoteView.as_view()),
     path("chat/<uuid:app_id>/chat_record/<uuid:record_id>/share", views.ChatShareView.as_view()),
+    path("chat/<uuid:app_id>/completions", views.OpenAICompatibleView.as_view()),
 ]
