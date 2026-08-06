@@ -1,6 +1,13 @@
 # apps/chat/tests/conftest.py
 import pytest
+from rest_framework.test import APIClient
+
 from application.models import Application
+
+
+@pytest.fixture
+def api():
+    return APIClient()
 
 
 @pytest.fixture
