@@ -53,3 +53,14 @@ def test_query_group_by_knowledge_merge(knowledge, knowledge2, document, documen
     hits = PGVectorStore().query("x", [str(knowledge.id), str(knowledge2.id)], "embedding",
                                  top_n=1, similarity=0.0, model=FakeEmbeddingModel(q))
     assert len(hits) == 1 and hits[0].paragraph_id == str(pa.id)
+
+    @pytest.mark.django_db
+    def test_keywords_search(knowledge, document, make_paragraph):
+        p = make_paragraph(document, content="MaxKB 知识库支持向量检索与全文检索。")
+        from django.db import connection
+        with connection.cursor() as cur:
+            cur.execute("UPDATE embedding SET search_vector = to_tsvector('simple', %s) WHERE paragraph_id = %s",
+                        [p.content, p.id])
+        hits = PGVectorStore().query("向量检索", [str(knowledge.id)], "keywords", top_n=3, similarity=0.0,
+                                     model=FakeEmbeddingModel([0.0]))
+        assert hits and hits[0].paragraph_id == str(p.id)
