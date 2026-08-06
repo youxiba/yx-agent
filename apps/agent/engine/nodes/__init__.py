@@ -5,6 +5,8 @@ from agent.engine.registry import NODES
 from agent.engine.nodes.condition_node import ConditionNode
 from agent.engine.nodes.start_node import StartNode
 from agent.engine.nodes.reply_node import ReplyNode
+from agent.engine.nodes.ai_chat_node import AiChatNode
+
 NODES.register(StartNode); NODES.register(ReplyNode)
 
 from agent.engine.nodes.loop_node import LoopNode, LoopStartNode, LoopBreakNode, LoopContinueNode
@@ -12,3 +14,4 @@ NODES.register(ConditionNode)
 NODES.register(LoopNode); NODES.register(LoopStartNode)
 NODES.register(LoopBreakNode); NODES.register(LoopContinueNode)
 NODES.register(StartNode); NODES.register(ReplyNode)
+NODES.register(AiChatNode)
