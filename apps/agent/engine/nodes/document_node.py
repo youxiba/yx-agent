@@ -7,7 +7,7 @@ from agent.engine.errors import WorkflowEngineError
 
 class DocumentExtractNode(BaseNode):
     node_type = "document-extract-node"
-    workflow_modes = ("knowledge",)
+    workflow_modes = ("application", "knowledge")
 
     def execute(self, ctx: NodeContext) -> NodeResult:
         doc_id = ctx.config.get("document_id")
@@ -17,7 +17,7 @@ class DocumentExtractNode(BaseNode):
 
 class DocumentSplitNode(BaseNode):
     node_type = "document-split-node"
-    workflow_modes = ("knowledge",)
+    workflow_modes = ("application", "knowledge")
 
     def execute(self, ctx: NodeContext) -> NodeResult:
         cfg = ctx.config
@@ -30,7 +30,7 @@ class DocumentSplitNode(BaseNode):
 
 class KnowledgeWriteNode(BaseNode):
     node_type = "knowledge-write-node"
-    workflow_modes = ("knowledge",)
+    workflow_modes = ("application", "knowledge")
 
     def execute(self, ctx: NodeContext) -> NodeResult:
         cfg = ctx.config

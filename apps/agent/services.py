@@ -2,7 +2,8 @@
 """应用工作流执行/恢复编排：chat 视图调用。"""
 from __future__ import annotations
 from chat.sse import SSEEvent, EventEmitter, EVT_MESSAGE_END
-from agent.models import Application, WorkflowExecution
+from application.models import Application
+from agent.models import WorkflowExecution
 from agent.engine.graph import WorkflowGraph
 from agent.engine.context import ContextStore
 from agent.engine.node import NodeContext

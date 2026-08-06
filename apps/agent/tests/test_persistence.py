@@ -1,5 +1,6 @@
 import pytest
-from agent.models import Application, WorkflowExecution
+from application.models import Application
+from agent.models import WorkflowExecution
 from agent.engine.graph import WorkflowGraph, GraphNode, GraphEdge
 from agent.engine.persistence import ExecutionPersistence
 from agent.engine.context import ContextStore
@@ -11,12 +12,6 @@ from agent.tests.util import _mk_ctx
 from agent.engine.nodes import *
 
 
-class MinStartNode(BaseNode):           # D9 前兜底：start-node 还未在 nodes 包注册
-    node_type = "start-node"
-    workflow_modes = ("application",)
-    def execute(self, ctx): return NodeResult()
-
-
 class StepNode(BaseNode):
     node_type = "test-step-node"
     workflow_modes = ("application",)
@@ -24,10 +19,6 @@ class StepNode(BaseNode):
     def execute(self, ctx):
         s = ctx.store.global_vars.get("steps", 0) + self.seq
         return NodeResult(global_vars={"steps": s})
-
-
-def setup_module():
-    NODES.register(MinStartNode)
 
 
 @pytest.mark.django_db
@@ -44,8 +35,11 @@ def test_interrupt_then_resume_matches_full_run():
         g.add_edge(GraphEdge("n2", "n3"))
         return g
 
+    # 图存进 app.work_flow（与生产 services.py 一致：snapshot 从 application.work_flow 恢复图）
+    g = build()
+    app.work_flow = g.to_json(); app.save()
     # 完整跑一次
-    full = ContextStore(); Executor(build()).run(_mk_ctx(full, EventEmitter()), EventEmitter(), "s")
+    full = ContextStore(); Executor(g).run(_mk_ctx(full, EventEmitter()), EventEmitter(), "s")
     # 中断：只跑 n1、n2 后 snapshot（模拟 n3 前中断）
     partial = ContextStore(); partial.global_vars["steps"] = 3   # 等价 n1+n2 后的状态
     pers = ExecutionPersistence(app)

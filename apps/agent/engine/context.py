@@ -23,8 +23,9 @@ class ContextStore:
     def write_result(self, node_id: str, node_name: str, node_vars: dict,
                      global_vars: dict | None = None) -> None:
         with self._lock:
+            bucket = self.node_vars.setdefault(node_name, {})   # 始终注册节点（记录已执行节点）
             if node_vars:
-                self.node_vars.setdefault(node_name, {}).update(node_vars)
+                bucket.update(node_vars)
             if global_vars:
                 self.global_vars.update(global_vars)
 
@@ -58,8 +59,14 @@ class ContextStore:
 
     # ---------- 模板渲染 ----------
     def build_jinja_ctx(self, **extra: Any) -> dict[str, Any]:
-        """Jinja2 上下文：全局变量平铺 + 节点名作用域 + 额外注入。"""
-        ctx: dict[str, Any] = {**self.global_vars, **self.chat_vars}
+        """Jinja2 上下文：平铺变量 + chat/global 嵌套作用域 + 节点名作用域 + 额外注入。
+
+        兼容两种模板写法：`{{ chat.question }}`（命名空间）与 `{{ question }}`（平铺）。
+        """
+        # global 后合并 → 同名键 global 覆盖 chat（节点最新输出优先，如 question 改写）
+        ctx: dict[str, Any] = {**self.chat_vars, **self.global_vars}
+        ctx["global"] = self.global_vars
+        ctx["chat"] = self.chat_vars
         ctx.update(self.node_vars)          # 节点名 -> 该节点输出（'{{ 知识库检索.paragraph_list }}'）
         ctx.update(extra)
         return ctx

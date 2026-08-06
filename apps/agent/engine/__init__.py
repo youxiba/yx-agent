@@ -22,4 +22,5 @@ def run_workflow(graph, *, mode="application", inputs=None, emitter=None, servic
     executor.run(ctx, emitter, start_id=graph.get_start())
     emitter.emit(SSEEvent(EVT_MESSAGE_END, is_end=True,
                           answer_text=store.global_vars.get("answer", "")))
+    emitter.close()   # 结束哨兵，否则消费者（stream/events）阻塞等待
     return store

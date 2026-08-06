@@ -18,6 +18,7 @@ class SplitNode(BaseNode):
 
 
 def test_aggregation_joins_branches():
+    NODES.register(SplitNode)   # 测试自定义节点需注册
     g = WorkflowGraph()
     g.add_node(GraphNode("s", "start-node", "开始"))
     g.add_node(GraphNode("c", "condition-node", "条件",

@@ -9,20 +9,10 @@ from agent.tests.util import _mk_ctx
 from agent.engine.nodes import *        # 触发装配
 
 
-class MinStartNode(BaseNode):           # D9 前兜底：start-node 还未在 nodes 包注册
-    node_type = "start-node"
-    workflow_modes = ("application",)
-    def execute(self, ctx): return NodeResult()
-
-
 class CaptureNode(BaseNode):
     node_type = "test-capture-node"
     workflow_modes = ("application",)
     def execute(self, ctx): return NodeResult(node_vars={"via": ctx.node_id})
-
-
-def setup_module():
-    NODES.register(MinStartNode)
 
 
 def test_branch_routing_true():

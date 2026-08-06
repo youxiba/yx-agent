@@ -36,7 +36,8 @@ def test_ai_chat_streams_deltas_and_usage():
     store.chat_vars["chat_history"] = [{"role": "user", "content": "之前聊过"}]
     em = EventEmitter()
     Executor(g).run(_mk_ctx(store, em, services={"gateway": FakeGateway()}), em, "s")
-    frames = [json.loads(f) for f in em.stream()]
+    em.close()   # 结束哨兵，否则 stream() 一直阻塞
+    frames = [json.loads(f[6:]) for f in em.stream()]   # 帧格式 data: {json}\n\n，剥前缀
     deltas = [f["content"] for f in frames if f["type"] == EVT_CONTENT_DELTA]
     assert "".join(deltas) == "你好！"
     assert store.resolve("global.answer") == "你好！"

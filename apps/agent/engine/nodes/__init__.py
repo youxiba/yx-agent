@@ -30,3 +30,9 @@ NODES.register(VariableAssignNode)
 NODES.register(SplittingNode)
 NODES.register(AggregationNode)
 NODES.register(ParameterExtractionNode)
+from agent.engine.nodes.form_node import FormNode
+from agent.engine.nodes.application_node import ApplicationNode
+from agent.engine.nodes.question_node import QuestionNode
+NODES.register(FormNode)
+NODES.register(ApplicationNode)
+NODES.register(QuestionNode)

@@ -64,6 +64,7 @@ class Executor:
         start_id = start_id or self.graph.get_start()
         self.pool = ThreadPoolExecutor(max_workers=self.pool_size)
         scope = _Scope()
+        self.scope = scope                       # 暴露供中断后 snapshot 取 done 集合
         scope.done = set(pre_done or ())
         try:
             scope.acquire()

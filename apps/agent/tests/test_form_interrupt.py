@@ -1,6 +1,7 @@
 # tests/test_form_interrupt.py
 import pytest
-from agent.models import Application, WorkflowExecution
+from application.models import Application
+from agent.models import WorkflowExecution
 from agent.engine.graph import WorkflowGraph, GraphNode, GraphEdge
 from agent.engine.executor import Executor
 from agent.engine.context import ContextStore
@@ -19,6 +20,7 @@ class EchoNode(BaseNode):
 
 @pytest.mark.django_db
 def test_form_interrupt_and_resume():
+    NODES.register(EchoNode)   # 测试自定义节点需注册
     app = Application.objects.create(name="表单应用", work_flow={})
     g = WorkflowGraph()
     g.add_node(GraphNode("s", "start-node", "开始"))

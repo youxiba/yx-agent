@@ -9,12 +9,6 @@ from chat.sse import EventEmitter
 from agent.tests.util import _mk_ctx
 
 
-class MinStartNode(BaseNode):
-    node_type = "start-node"
-    workflow_modes = ("application",)
-    def execute(self, ctx): return NodeResult()
-
-
 class SleepNode(BaseNode):
     node_type = "test-sleep-node"
     workflow_modes = ("application",)
@@ -26,8 +20,7 @@ class SleepNode(BaseNode):
 
 
 def setup_module():
-    NODES.register(MinStartNode)
-    NODES.register(SleepNode)
+    NODES.register(SleepNode)   # start-node 用真实实现（nodes/__init__.py 已注册）
 
 
 def _fork_join_graph() -> WorkflowGraph:
