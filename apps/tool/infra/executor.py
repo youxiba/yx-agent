@@ -54,9 +54,11 @@ class ToolExecutor:
                     [sys.executable, "-c", script],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     stdin=subprocess.DEVNULL, env=env, cwd=tmp,
-                    preexec_fn=self._posix_limits,        # Windows 上为 None（见陷阱）
+                    # preexec_fn 仅 POSIX 支持；Windows 上传 None（资源限制走看门狗）
+                    preexec_fn=self._posix_limits if os.name == "posix" else None,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
                 )
+                stop.register(p.pid)                     # 看门狗登记 pid，内存/超时才生效
                 try:
                     out, err = p.communicate(timeout=timeout)
                 except subprocess.TimeoutExpired:
