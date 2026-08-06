@@ -4,5 +4,6 @@ urlpatterns = [
     path('api/', include("common.urls")),
     path("api/",include("identity.urls")),
     path("api/",include("model_platform.urls")),
+    path("api/", include("knowledge.urls")),
 
 ]
