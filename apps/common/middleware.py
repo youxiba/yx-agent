@@ -31,6 +31,12 @@ def _unauthorized(msg="未认证"):
     return JsonResponse({"code": 401, "message": msg, "data": None}, status=401)
 
 
+def _resolve_workspace_id(user):
+    """用户默认工作空间：首个成员空间，回退到其拥有的工作空间"""
+    return (user.memberships.order_by("create_time").values_list("workspace_id", flat=True).first()
+            or user.owned_workspaces.order_by("create_time").values_list("id", flat=True).first())
+
+
 class AuthenticationMiddleware:
     """JWT 认证中间件：按路径策略校验 Bearer token"""
 
@@ -41,6 +47,7 @@ class AuthenticationMiddleware:
         request.auth_policy = resolve_policy(request.path)
         request.user = None
         request.auth = None
+        request.workspace_id = None
 
         # 登录/刷新等公开路径，跳过 JWT 校验
         if request.path.startswith(PUBLIC_PATHS):
@@ -57,6 +64,7 @@ class AuthenticationMiddleware:
                 if not ak or (ak.expires_at and ak.expires_at < now()):
                     return _unauthorized("应用 Key 无效或已过期")
                 request.user = ak.user
+                request.workspace_id = _resolve_workspace_id(ak.user)
                 request.auth = {"type": "api_key", "ak_id": str(ak.id)}
                 return self.get_response(request)
 
@@ -69,6 +77,7 @@ class AuthenticationMiddleware:
                 if cache_get(f"jwt:blacklist:{validated['jti']}"):
                     return _unauthorized("token 已注销")
                 request.user = user
+                request.workspace_id = _resolve_workspace_id(user)
                 request.auth = validated
             except (InvalidToken, TokenError):
                 return _unauthorized("token 无效或已过期")

@@ -5,6 +5,7 @@ from common.auth.decorators import require_permissions
 from common.result import Result
 from identity.permissions import P
 from .models import Trigger, TaskRecord
+from .scheduler import register_trigger, unregister_trigger
 from .serializers import TriggerSerializer
 from .services import get_trigger
 
@@ -26,6 +27,10 @@ class TriggerListView(APIView):
         ser = TriggerSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         t = ser.save(workspace_id=request.workspace_id, created_by=request.user)
+        ser.save(workspace_id=request.workspace_id, created_by=request.user)
+        if t.is_active and t.trigger_type == Trigger.TriggerType.TIMER:
+            register_trigger(t)  # 新建即挂载
+        return Result.success(TriggerSerializer(t).data)
         # 注：Day 2 接入调度后，这里补 register_trigger(t)
         return Result.success(TriggerSerializer(t).data)
 
@@ -41,6 +46,12 @@ class TriggerOperateView(APIView):
         ser = TriggerSerializer(t, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         ser.save()
+        ser.save()
+        if t.is_active and t.trigger_type == Trigger.TriggerType.TIMER:
+            register_trigger(t)  # replace_existing 幂等覆盖
+        else:
+            unregister_trigger(t.id)
+        return Result.success(TriggerSerializer(t).data)
         # 注：Day 2 这里改为：启用定时则 register_trigger(t)，否则 unregister_trigger(t.id)
         return Result.success(TriggerSerializer(t).data)
 
@@ -48,6 +59,8 @@ class TriggerOperateView(APIView):
     def delete(self, request, trigger_id):
         t = get_trigger(request, trigger_id)
         # 注：Day 2 这里补 unregister_trigger(t.id)
+        t.delete()
+        unregister_trigger(t.id)
         t.delete()
         return Result.success()
 
@@ -58,4 +71,9 @@ class TriggerToggleView(APIView):
         t = get_trigger(request, trigger_id)
         t.is_active = not t.is_active
         t.save(update_fields=["is_active", "update_time"])
+        t.save(update_fields=["is_active", "update_time"])
+        if t.is_active and t.trigger_type == Trigger.TriggerType.TIMER:
+            register_trigger(t)
+        else:
+            unregister_trigger(t.id)
         return Result.success({"is_active": t.is_active})

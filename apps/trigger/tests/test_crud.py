@@ -1,6 +1,6 @@
 import pytest
 from rest_framework.test import APIClient
-from identity.models import User, Role
+from identity.models import User, Role, Workspace, WorkspaceMember
 from trigger.models import Trigger
 
 
@@ -10,7 +10,10 @@ def api():
 
 
 def _login(api, username="admin"):
-    User.objects.create_user(username=username, email=f"{username}@x.cn", password="Passw0rd!", role=Role.ADMIN)
+    user = User.objects.create_user(username=username, email=f"{username}@x.cn", password="Passw0rd!", role=Role.ADMIN)
+    # 中间件从用户默认工作空间注入 request.workspace_id，测试需先建空间
+    ws = Workspace.objects.create(name=f"{username}-ws", owner=user)
+    WorkspaceMember.objects.create(workspace=ws, user=user, role=Role.WORKSPACE_MANAGE)
     r = api.post("/api/admin/auth/login", {"username": username, "password": "Passw0rd!"}, format="json")
     api.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access']}")
 

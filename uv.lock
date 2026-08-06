@@ -81,6 +81,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f1/93/d36bc33f0b1cfbb7c2b5e3057586abc500aa49f0c1d8fb32af347319c1ca/apiclient-1.0.4.tar.gz", hash = "sha256:2569c998191cd1a042beffa3cf7c1119277237b4ba1fa021d20c81fa98fa95e9", size = 4912, upload-time = "2019-03-21T00:55:53.521Z" }
 
 [[package]]
+name = "apscheduler"
+version = "3.11.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzlocal" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/6b/eeff360196bb20b312c9e762a820fd1b2c6d809466c755ef57863478e454/apscheduler-3.11.3.tar.gz", hash = "sha256:cd2fcc9330039a81a5893472ad49facf23a6d5604cbe1d918c835c6de7834d5a", size = 110312, upload-time = "2026-06-28T19:39:22.493Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/42/c9/8638db32514dbb9157b3d82680c6faea89283523edf9ed2415ea3884f2ae/apscheduler-3.11.3-py3-none-any.whl", hash = "sha256:bbeb2ec02d23d3c06a6c07ed7f0f3939ada6680eb121fae809a69bb42c537a30", size = 66024, upload-time = "2026-06-28T19:39:20.982Z" },
+]
+
+[[package]]
 name = "argon2-cffi"
 version = "23.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4436,6 +4448,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "apiclient" },
+    { name = "apscheduler" },
     { name = "argon2-cffi" },
     { name = "beautifulsoup4" },
     { name = "celery" },
@@ -4489,6 +4502,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apiclient", specifier = ">=1.0.4" },
+    { name = "apscheduler", specifier = ">=3.11.3" },
     { name = "argon2-cffi", specifier = "==23.*" },
     { name = "beautifulsoup4", specifier = "==4.*" },
     { name = "celery", specifier = "==5.*" },
