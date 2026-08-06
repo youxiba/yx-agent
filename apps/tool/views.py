@@ -12,8 +12,8 @@ from common.auth.decorators import require_permissions
 from identity.permissions import P
 from .infra.executor import ToolExecutor
 from .infra.static_check import static_check
-from .models import Tool
-from .serializers import ToolSerializer
+from .models import Tool, ToolRecord
+from .serializers import ToolSerializer, ToolRecordSerializer
 from .services import validate_inputs
 
 
@@ -125,3 +125,21 @@ class ToolDebugView(APIView):
                 from .services import record_execution
                 record_execution(tool, result, inputs=inputs, chat_id=request.data.get("chat_id"))
         return Result.success(result)
+
+class ToolRecordView(APIView):
+    @require_permissions(P.TOOL_READ)
+    def get(self, request, tool_id):
+        tool = ToolOperateView()._get(request, tool_id)
+        page = int(request.query_params.get("page", 1))
+        size = int(request.query_params.get("page_size", 20))
+        pg = Paginator(tool.records.order_by("-created_at"), size)
+        return Result.success({"items": [ToolRecordSerializer(r).data for r in pg.page(page)],
+                               "total": pg.count})
+
+
+class ToolRecordOperateView(APIView):
+    @require_permissions(P.TOOL_WRITE)
+    def delete(self, request, tool_id):
+        """审计记录批量清空（仅本人工具，配合 Day 2 的归属校验）"""
+        ToolRecord.objects.filter(tool_id=tool_id).delete()
+        return Result.success()
