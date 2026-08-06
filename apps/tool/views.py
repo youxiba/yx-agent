@@ -10,9 +10,11 @@ from common.result import Result
 from common.exceptions import AppApiException
 from common.auth.decorators import require_permissions
 from identity.permissions import P
+from .infra.executor import ToolExecutor
 from .infra.static_check import static_check
 from .models import Tool
 from .serializers import ToolSerializer
+from .services import validate_inputs
 
 
 class ToolListView(APIView):
@@ -100,3 +102,26 @@ class ToolImportView(APIView):
                       "input_schema": data.get("input_schema", {"type": "object"})},
         )
         return Result.success(ToolSerializer(tool).data)
+
+class ToolDebugView(APIView):
+    """草稿态调试运行：静态检查 → schema 校验 → 沙箱执行，不落库（可选落 ToolRecord）"""
+
+    @require_permissions(P.TOOL_WRITE)
+    def post(self, request):
+        code = request.data.get("code", "")
+        inputs = request.data.get("inputs") or {}
+        timeout = int(request.data.get("timeout", 30))
+        tool_id = request.data.get("tool_id")
+        check = static_check(code)
+        if not check["ok"]:
+            return Result.success({"status": "CHECK_FAIL", "ok": False, "check": check})
+        schema = request.data.get("input_schema") or {"type": "object"}
+        validate_inputs(schema, inputs)
+        result = ToolExecutor().exec_code(code, inputs, timeout=timeout)
+        if tool_id:                                       # 挂到真实工具上留审计
+            from .models import Tool
+            tool = Tool.objects.filter(id=tool_id).first()
+            if tool:
+                from .services import record_execution
+                record_execution(tool, result, inputs=inputs, chat_id=request.data.get("chat_id"))
+        return Result.success(result)
