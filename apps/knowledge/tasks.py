@@ -39,3 +39,18 @@ def tokenize_by_document(self, document_id: str):
     from .services.ingest import DocumentIngestService
     DocumentIngestService().tokenize(document_id)
     return document_id
+
+@celery_app.task(base=QueueOnce, once={"keys": ["document_id"], "timeout": 3600}, bind=True)
+def sync_web_document(self, document_id: str):
+    """同步单篇 Web 文档"""
+    from .services.web_sync import WebSyncService
+    doc = Document.objects.get(id=document_id)
+    return WebSyncService().crawl(doc)
+
+
+@celery_app.task
+def sync_web_knowledge():
+    """定时同步所有 Web 知识库的 Web 文档（Celery beat 驱动）"""
+    from .models import Document, DocumentType
+    for doc_id in Document.objects.filter(type=DocumentType.WEB, is_active=True).values_list("id", flat=True):
+        sync_web_document.delay(str(doc_id))

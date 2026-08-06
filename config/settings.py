@@ -1,6 +1,9 @@
 import hashlib
 from pathlib import Path
 import sys
+
+from celery.schedules import crontab
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "apps"))
 from pydantic_settings import BaseSettings
 
@@ -127,3 +130,10 @@ CELERY_BROKER_URL = f"redis://{settings.redis_host}:{settings.redis_port}/{setti
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = settings.debug          # 开发期本地执行，便于调试
 CELERY_ONCE_REDIS_URL = CELERY_BROKER_URL
+
+CELERY_BEAT_SCHEDULE = {
+    "sync-web-knowledge-every-6h": {
+        "task": "knowledge.tasks.sync_web_knowledge",
+        "schedule": crontab(minute="0", hour="*/6"),
+    },
+}

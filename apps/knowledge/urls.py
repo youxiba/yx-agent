@@ -23,4 +23,7 @@ urlpatterns = [
     path("admin/termbase/<uuid:termbase_id>", views.TermbaseOperateView.as_view()),
     path("admin/termbase/<uuid:termbase_id>/term", views.TermListView.as_view()),
     path("admin/termbase/term/<uuid:term_id>", views.TermOperateView.as_view()),
+    path("admin/knowledge/<uuid:knowledge_id>/export", views.KnowledgeExportView.as_view()),
+    path("admin/knowledge/template", views.TemplateDownloadView.as_view()),
+    path("admin/knowledge/document/<uuid:document_id>/sync", views.DocumentSyncView.as_view()),
 ]

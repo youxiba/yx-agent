@@ -1,7 +1,13 @@
 # coding=utf-8
+import io
 import json
+import os
+import zipfile
+from urllib.parse import quote
 
 from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from common.result import Result
 from identity.permissions import P
@@ -9,7 +15,7 @@ from common.auth.decorators import require_permissions
 from identity.services import WorkspaceService
 from .infra import index_service
 from .infra.vector_store import PGVectorStore
-from .models import Knowledge, KnowledgeFolder, VectorType, Document, Problem, Paragraph, Term, Termbase
+from .models import Knowledge, KnowledgeFolder, VectorType, Document, Problem, Paragraph, Term, Termbase, DocumentType
 from .serializers import DocumentSerializer, FolderSerializer, KnowledgeSerializer, ProblemSerializer, TermSerializer, \
     TermbaseSerializer, ParagraphSerializer
 from .services.ingest import DocumentIngestService
@@ -402,3 +408,73 @@ class TermOperateView(APIView):
     def delete(self, request, term_id):
         Term.objects.filter(id=term_id).delete()
         return Result.success()
+
+class KnowledgeExportView(APIView):
+    """GET /api/admin/knowledge/{id}/export  导出 zip（源码文件 + 无文件的转 md）"""
+    @require_permissions(P.KNOWLEDGE_READ)
+    def get(self, request, knowledge_id):
+        k = get_knowledge(request, knowledge_id)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for doc in k.documents.filter(is_active=True, type=DocumentType.BASE):
+                path = doc.meta.get("file_path")
+                if path and os.path.exists(path):
+                    zf.write(path, arcname=f"{k.name}/{doc.name}")
+                else:
+                    md = self._doc_to_md(doc)
+                    if md:
+                        zf.writestr(f"{k.name}/{doc.name}.md", md)
+        resp = HttpResponse(buf.getvalue(), content_type="application/zip")
+        resp["Content-Disposition"] = f'attachment; filename="{quote(k.name)}.zip"'
+        return resp
+
+    @staticmethod
+    def _doc_to_md(doc) -> str:
+        lines = [f"# {doc.name}", ""]
+        for p in doc.paragraphs.filter(is_active=True):
+            lines.append(f"## {p.title}" if p.title else "## ")
+            lines.append(p.content)
+            for pp in p.problems.filter(is_active=True):
+                lines.append(f"- 关联问题：{pp.content}")
+            lines.append("")
+        return "\n".join(lines)
+
+
+class TemplateDownloadView(APIView):
+    """GET /api/admin/knowledge/template?type=qa|table  导入模板下载"""
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def get(self, request):
+        tpl = request.query_params.get("type", "qa")
+        if tpl == "table":
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "sheet1"
+            ws.append(["姓名", "部门", "职位"])
+            ws.append(["张三", "研发", "工程师"])
+            buf = io.BytesIO()
+            wb.save(buf)
+            resp = HttpResponse(buf.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            resp["Content-Disposition"] = 'attachment; filename="table_template.xlsx"'
+            return resp
+        content = (
+            "问题1：MaxKB 支持哪些部署方式？\n"
+            "回答1：支持 Docker Compose 一键部署与 K8s Helm 部署。\n\n"
+            "问题2：如何配置本地向量模型？\n"
+            "回答2：在模型平台选择 local 供应商并下载模型即可。\n"
+        )
+        resp = HttpResponse(content, content_type="text/plain; charset=utf-8")
+        resp["Content-Disposition"] = 'attachment; filename="qa_template.md"'
+        return resp
+
+class DocumentSyncView(APIView):
+    """POST /api/admin/knowledge/document/{id}/sync  手动同步 Web 文档"""
+
+    @require_permissions(P.KNOWLEDGE_WRITE)
+    def post(self, request, document_id):
+        doc = Document.objects.filter(id=document_id, type=DocumentType.WEB).first()
+        if not doc:
+            return Result.error("Web 文档不存在", code=404)
+        get_knowledge(request, str(doc.knowledge_id))
+        from .tasks import sync_web_document
+        sync_web_document.delay(str(doc.id))
+        return Result.success({"message": "同步已排队"})
