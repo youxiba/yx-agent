@@ -9,14 +9,14 @@ class DomainEvent:
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
-@dataclass
+@dataclass(kw_only=True)
 class DocumentIngested(DomainEvent):
     """文档已入库 → 触发切分"""
     document_id: str
     knowledge_id: str
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ParagraphEmbedded(DomainEvent):
     """段落已向量化 → 触发全文分词"""
     document_id: str
