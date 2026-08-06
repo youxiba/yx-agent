@@ -15,6 +15,7 @@ PUBLIC_PATHS = ("/api/admin/auth/login", "/api/admin/auth/refresh")
 PATH_POLICY = [
     (r"^/api/admin/", "jwt"),
     (r"^/api/public/", "optional"),
+    (r"^/api/chat/mcp", "mcp"),  # MCP JSON-RPC 端点：view 内部自行做 app-key 鉴权
     (r"^/api/chat/", "chat"),
 ]
 

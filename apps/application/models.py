@@ -1,4 +1,4 @@
-# apps/application/models.py
+ # apps/application/models.py
 import uuid
 from django.conf import settings
 from django.db import models
@@ -19,6 +19,11 @@ class Application(models.Model):
     app_type = models.CharField(max_length=16, choices=Type.choices, default=Type.SIMPLE)
     work_flow = models.JSONField(default=dict)   # WORK_FLOW 应用的 DAG 图 JSON
     access_token = models.CharField(max_length=128, unique=True, db_index=True)  # 应用 Key（聊天认证用）
+    # MCP 暴露端绑定 app-key（identity.ApiKey，认证用）
+    api_key = models.OneToOneField(
+        "identity.ApiKey", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="application",
+    )
     # 模型设置：{"model_id": "...", "system": "提示词", "temperature": 0.7, "max_tokens": 1024}
     model_setting = models.JSONField(default=dict)
     # 知识库设置：{"knowledge_ids": [...], "search_mode": "embedding", "top_n": 3, "similarity": 0.3,
