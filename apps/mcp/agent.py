@@ -4,11 +4,12 @@
 
 仅本 Phase 允许引入 langgraph/deepagents（见基线约定）。
 """
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
-from deepagents import create_deep_agent, SandboxShellBackend
+from deepagents import create_deep_agent
 
 from chat.sse import SSEEvent, EVT_CONTENT_DELTA, EVT_TOOL_CALL
+from mcp.backend import SandboxShellBackend
 
 
 class DeepAgentRunner:
@@ -19,10 +20,10 @@ class DeepAgentRunner:
         self.tool_calls: list[dict] = []
         self.agent = create_deep_agent(
             model=model,
-            backend=SandboxShellBackend(virtual_mode=True),   # 虚拟 shell，禁真实执行
+            backend=SandboxShellBackend(),                    # 禁真实 shell（安全红线）
             tools=tools,
             checkpointer=MemorySaver(),                       # thread_id=chat_id 隔离多轮
-            disable_parallel_tool_calls=True,
+            interrupt_on={"write_file": False, "read_file": False, "edit_file": False},
         )
         self.config = {"configurable": {"thread_id": thread_id or "default"}}
 
@@ -31,7 +32,9 @@ class DeepAgentRunner:
         final = []
         async for event in self.agent.astream({"messages": messages},
                                               self.config, stream_mode="updates"):
-            for _node, update in event.items():
+            for update in event.values():
+                if not update:                    # updates 模式某些节点产 None 帧
+                    continue
                 msgs = update.get("messages", [])
                 for m in msgs:
                     if isinstance(m, AIMessage):

