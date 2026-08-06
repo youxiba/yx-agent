@@ -17,6 +17,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # 建 vector 类型（测试库全新，必须先建扩展；主库已存在则幂等跳过）
+        migrations.RunSQL("CREATE EXTENSION IF NOT EXISTS vector"),
         migrations.CreateModel(
             name="Knowledge",
             fields=[

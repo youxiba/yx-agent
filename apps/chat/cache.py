@@ -1,6 +1,8 @@
 # apps/chat/cache.py
 """会话运行时缓存：应用配置快照 + 最近历史 + 会话元信息，全部走 Redis。"""
 import json
+
+from common import cache
 from common.cache import cache_get, cache_set, cache_delete
 
 INFO_KEY = "chat_info:{chat_id}"                 # 会话运行时上下文
@@ -38,3 +40,11 @@ class ChatInfoService:
     @staticmethod
     def get_history(chat_id: str) -> list[dict]:
         return json.loads(cache_get(HISTORY_KEY.format(chat_id=chat_id)) or "[]")
+
+    def cache_incr(key: str, delta: int = 1, ttl: int | None = None) -> int:
+        """原子自增；key 不存在时初始化为 delta。"""
+        try:
+            return cache.incr(key, delta)
+        except ValueError:  # key 不存在，django-redis 抛 ValueError
+            cache.set(key, delta, ttl)
+            return delta

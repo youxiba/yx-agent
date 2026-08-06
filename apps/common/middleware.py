@@ -5,6 +5,7 @@ from django.utils.timezone import now
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
+from chat.auth import resolve_application
 from common.cache import cache_get
 
 # 公开免认证路径（登录/刷新不需要 token）
@@ -70,5 +71,10 @@ class AuthenticationMiddleware:
                 request.auth = validated
             except (InvalidToken, TokenError):
                 return _unauthorized("token 无效或已过期")
+
+            if request.auth_policy == "chat":
+                # 聊天认证：Authorization: Bearer {access_token}；无 token 时允许匿名（匿名端用 client_id）
+                token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+                request.application = resolve_application(token) if token else None
 
         return self.get_response(request)
