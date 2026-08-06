@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "application.apps.ApplicationConfig", "chat.apps.ChatConfig",
     "agent.apps.AgentConfig",
     "tool.apps.ToolConfig",
+    "trigger.apps.TriggerConfig",
+
 ]
 
 MIDDLEWARE = [
